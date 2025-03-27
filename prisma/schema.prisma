@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String           @id @default(uuid())
+  clerkId       String           @unique
+  email         String           @unique
+  name          String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  conversionJobs ConversionJob[]
+
+  @@index([clerkId])
+}
+
+model ConversionJob {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileSize    Int
+  fileType    String
+  fileUrl     String
+  language    String   @default("en") // Add language field with default
+  status      String   @default("pending") // pending, processing, completed, failed
+  progress    Float    @default(0)
+  eta         String?
+  downloadUrl String?
+  error       String?
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
