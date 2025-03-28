@@ -8,6 +8,7 @@ import fs from "fs"
 import path from "path"
 import { promisify } from "util"
 import { jsonToSrtOpenai, TranscriptJSON } from "./json-2-srt-openai"
+import { auth } from "@clerk/nextjs/server"
 
 // Initialize clients
 console.log("[DEBUG] Initializing OpenAI client")
@@ -304,6 +305,27 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
       } catch (cleanupError) {
         console.warn("[WARN] Failed to cleanup temporary file:", file, cleanupError)
       }
+    }
+
+    // Clean up user's video folder
+    try {
+      const { userId } = await auth()
+      if (!userId) {
+        throw new Error("User ID is not available")
+      }
+      const userVideoPath = path.join(process.cwd(), "uploads", userId)
+      if (fs.existsSync(userVideoPath)) {
+        const files = fs.readdirSync(userVideoPath)
+        for (const file of files) {
+          const filePath = path.join(userVideoPath, file)
+          await unlinkAsync(filePath)
+          console.log("[DEBUG] Cleaned up user video file:", filePath)
+        }
+        fs.rmdirSync(userVideoPath)
+        console.log("[DEBUG] Removed user video directory:", userVideoPath)
+      }
+    } catch (cleanupError) {
+      console.warn("[WARN] Failed to cleanup user video directory:", cleanupError)
     }
   }
 }
