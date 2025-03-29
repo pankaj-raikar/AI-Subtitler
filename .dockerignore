@@ -1,0 +1,14 @@
+.git
+.gitignore
+.DS.Store
+
+Dockerfile*
+docker-compose*
+.dockerignore
+
+node_modules
+
+dist
+built
+*.log
+.next
