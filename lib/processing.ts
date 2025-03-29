@@ -103,6 +103,7 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
   const tempDir = path.join(process.cwd(), "uploads", "temp")
   const audioPath = path.join(tempDir, `${jobId}.wav`)
   const cleanupFiles: string[] = [audioPath]
+  let inputPath: string | undefined; // Declare inputPath here
 
   try {
     // Ensure temp directory exists
@@ -125,7 +126,7 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
 
     // Get the local file path
     const localFilePath = fileUrl.replace(/^\/api\/v1\/files\//, "")
-    const inputPath = path.join(process.cwd(), "uploads", localFilePath)
+    inputPath = path.join(process.cwd(), "uploads", localFilePath) // Assign value here
     console.log("[DEBUG] Resolved input file path", { fileUrl, localFilePath, inputPath })
 
     if (!fs.existsSync(inputPath)) {
@@ -295,37 +296,38 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
     console.error("[ERROR] Media processing failed:", error)
     throw error
   } finally {
-    // Cleanup temporary files
+    // Cleanup temporary files explicitly added to cleanupFiles array (e.g., audioPath, srtPath)
+    console.log("[DEBUG] Starting cleanup of temporary processing files", { cleanupFiles });
     for (const file of cleanupFiles) {
       try {
         if (fs.existsSync(file)) {
           await unlinkAsync(file)
-          console.log("[DEBUG] Cleaned up temporary file:", file)
+          console.log("[DEBUG] Successfully cleaned up temporary file:", file)
+        } else {
+          console.log("[DEBUG] Temporary file not found for cleanup:", file);
         }
       } catch (cleanupError) {
-        console.warn("[WARN] Failed to cleanup temporary file:", file, cleanupError)
+        console.warn("[WARN] Failed to cleanup temporary file:", file, { error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) });
       }
     }
+    console.log("[DEBUG] Finished cleanup of temporary processing files.");
 
-    // Clean up user's video folder
-    try {
-      const { userId } = await auth()
-      if (!userId) {
-        throw new Error("User ID is not available")
-      }
-      const userVideoPath = path.join(process.cwd(), "uploads", userId)
-      if (fs.existsSync(userVideoPath)) {
-        const files = fs.readdirSync(userVideoPath)
-        for (const file of files) {
-          const filePath = path.join(userVideoPath, file)
-          await unlinkAsync(filePath)
-          console.log("[DEBUG] Cleaned up user video file:", filePath)
+    // Cleanup the original uploaded file from local storage, as requested.
+    // Note: Using local storage for uploads is not recommended for scalable production environments.
+    if (inputPath && typeof inputPath === 'string') {
+        console.log("[DEBUG] Attempting cleanup of original uploaded file from local storage", { inputPath });
+        try {
+            if (fs.existsSync(inputPath)) {
+                await unlinkAsync(inputPath);
+                console.log("[DEBUG] Successfully cleaned up original uploaded file:", inputPath);
+            } else {
+                console.log("[DEBUG] Original uploaded file not found for cleanup (already deleted?):", inputPath);
+            }
+        } catch (cleanupError) {
+            console.warn("[WARN] Failed to cleanup original uploaded file:", inputPath, { error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) });
         }
-        fs.rmdirSync(userVideoPath)
-        console.log("[DEBUG] Removed user video directory:", userVideoPath)
-      }
-    } catch (cleanupError) {
-      console.warn("[WARN] Failed to cleanup user video directory:", cleanupError)
+    } else {
+         console.warn("[WARN] Could not determine original input path for cleanup.");
     }
   }
 }
