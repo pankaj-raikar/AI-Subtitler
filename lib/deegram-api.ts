@@ -8,7 +8,7 @@ const listen = async () => {
   const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
 
   console.log('[DEBUG] Reading sample audio file')
-  const audioFile = fs.readFileSync("sample-0.mp3")
+  const audioFile = fs.readFileSync("japanese.mp3")
   console.log('[DEBUG] Sample file loaded', { size: audioFile.length })
   
   console.log('[DEBUG] Sending audio to Deepgram for transcription')

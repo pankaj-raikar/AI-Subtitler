@@ -34,7 +34,7 @@ async function transcribeWithDeepgram(audioPath: string, language = "en"): Promi
     console.log("[DEBUG] Reading audio file for Deepgram")
     const { result, error } = await deepgram.listen.prerecorded.transcribeFile(await readFileAsync(audioPath), {
       model: "whisper",
-      language: language,
+      language: 'en',
       smart_format: true,
     })
 

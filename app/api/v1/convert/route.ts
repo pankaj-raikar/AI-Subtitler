@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { saveFile } from "@/lib/storage"
 import { addConversionJob } from "@/lib/queue"
-import { createConversionJob } from "@/lib/db"
+import { createConversionJob, getUserJobs } from "@/lib/db" // Import getUserJobs
 
 // File size limit: 2GB
 const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024
@@ -25,6 +25,19 @@ export async function POST(req: NextRequest) {
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Check for concurrent processing jobs
+    // Fetch recent jobs and filter locally as getUserJobs status filter might be unreliable
+    const recentJobs = await getUserJobs(userId, { limit: 100, offset: 0 }) // Fetch recent jobs
+    const currentlyProcessingJobs = recentJobs.filter(job => job.status === 'processing') // Filter for 'processing' status
+    
+    if (currentlyProcessingJobs.length >= 2) {
+      console.warn(`[CONCURRENCY LIMIT] User ${userId} has ${currentlyProcessingJobs.length} jobs processing. Limit reached.`)
+      return NextResponse.json(
+        { error: "Maximum concurrent processing limit reached (2). Please wait for existing jobs to complete." },
+        { status: 429 }, // Too Many Requests
+      )
     }
 
     // Get form data
@@ -102,4 +115,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to process file upload" }, { status: 500 })
   }
 }
-
