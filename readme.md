@@ -130,6 +130,24 @@ npm run dev
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Using Docker
+
+1. **Build the Docker image:**
+   Make sure you have Docker installed and running. Then, build the image using the provided Dockerfile:
+   ```bash
+   docker build -t ai-subtitler .
+   ```
+
+2. **Run the Docker container:**
+   Before running, ensure you have a `.env` file configured as described in step 3 of the manual installation. You can pass the environment variables to the container using the `--env-file` flag:
+   ```bash
+   docker run -p 3000:3000 --env-file .env ai-subtitler
+   ```
+   *Note: The `--env-file` flag requires Docker Engine version 19.03 or later.*
+
+3. **Access the application:**
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
 ## Usage
 
 1. Sign up for an account or sign in
