@@ -73,7 +73,7 @@ export default function Sidebar() {
         }`}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-border">
-          <h1 className="text-xl font-bold">SubTitler</h1>
+          <h1 className="text-xl font-bold">Ai Subtitler</h1>
           <button
             className="md:hidden p-2 rounded-md hover:bg-secondary text-foreground"
             onClick={() => setIsOpen(false)}

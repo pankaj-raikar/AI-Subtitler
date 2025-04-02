@@ -104,7 +104,7 @@ export default function DashboardClient({ initialJobs }: DashboardClientProps) {
 
       <header className="fixed top-0 left-0 right-0 h-12 bg-background border-b border-border z-10 px-4 md:px-8 md:left-64">
         <div className="flex items-center justify-between h-full">
-          <h1 className="text-lg font-bold">SubTitler</h1>
+          <h1 className="text-lg font-bold">Ai Subtitler</h1>
           <div className="hidden md:block">
             <h1 className="text-lg font-bold">Dashboard</h1>
           </div>
