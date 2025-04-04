@@ -35,14 +35,14 @@ const HeroSection = () => {
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
           }`}
         >
-          <div className="inline-block px-3 py-1 mb-4 rounded-full bg-secondary text-sm font-medium animate-pulse">
+          <div className="inline-block px-3 py-1 mb-4 rounded-full bg-primary/10 text-primary text-sm font-medium animate-pulse">
             🚀 AI-Powered Subtitle Generator
           </div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
             <span className="gradient-text">{typingText}</span>
             <span className={`inline-block ml-1 ${typingIndex < fullText.length ? "animate-pulse" : "opacity-0"}`}>|</span>
           </h1>
-          <p className="text-xl text-muted-foreground mb-8">
+          <p className="text-xl text-muted-foreground mb-8"> {/* Reverted back to text-muted-foreground */}
             Save time, enhance accessibility, and reach a global audience—no manual transcription required.
           </p>
           
@@ -52,17 +52,17 @@ const HeroSection = () => {
               Get Started Free <ArrowRight className="h-4 w-4" />
             </Button>
             </Link>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="hover:scale-105 transition-transform duration-300 group"
+            <Button
+              size="lg"
+              variant="outline"
+              className="hover:scale-105 transition-transform duration-300 group border-primary/50 hover:border-primary hover:text-primary"
             >
-              <Play className="h-4 w-4 mr-2 group-hover:text-primary transition-colors" />
+              <Play className="h-4 w-4 mr-2 text-primary transition-colors" />
               Watch Demo
             </Button>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-muted-foreground">
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-muted-foreground"> {/* Reverted back to text-muted-foreground */}
             <div className="flex items-center">
               <Check className="h-4 w-4 text-primary mr-2" />
               <span>No credit card required</span>

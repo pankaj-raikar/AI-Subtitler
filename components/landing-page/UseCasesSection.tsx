@@ -8,22 +8,22 @@ import {
 
 const useCases = [
   {
-    icon: <Youtube className="h-10 w-10 text-red-500" />,
+    icon: <Youtube className="h-10 w-10 text-destructive" />, // Use theme destructive color
     title: "Content Creators",
     description: "Boost SEO and engagement with subtitled YouTube/TikTok videos."
   },
   {
-    icon: <GraduationCap className="h-10 w-10 text-blue-500" />,
+    icon: <GraduationCap className="h-10 w-10 text-primary" />, // Use theme primary color
     title: "Educators",
     description: "Make courses accessible and inclusive for all learners."
   },
   {
-    icon: <Globe className="h-10 w-10 text-green-500" />,
+    icon: <Globe className="h-10 w-10 text-green-500" />, // Keep green for now, or could use accent
     title: "Global Brands",
     description: "Localize marketing videos for international audiences."
   },
   {
-    icon: <Mic className="h-10 w-10 text-purple-500" />,
+    icon: <Mic className="h-10 w-10 text-purple-500" />, // Keep purple for now, or could use primary/accent
     title: "Podcasters",
     description: "Turn video podcasts into searchable, subtitled content."
   }
@@ -34,7 +34,7 @@ const UseCasesSection = () => {
     <section id="use-cases" className="py-24">
       <div className="container px-4 sm:px-6 lg:px-8 mx-auto">
         <div className="max-w-3xl mx-auto text-center mb-16">
-          <div className="inline-block px-3 py-1 mb-4 rounded-full bg-secondary text-sm font-medium">
+          <div className="inline-block px-3 py-1 mb-4 rounded-full bg-primary/10 text-primary text-sm font-medium">
             🎯 Who Uses AI-Subtitler
           </div>
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
@@ -93,7 +93,8 @@ const UseCasesSection = () => {
               <div className="rounded-xl overflow-hidden border border-border">
                 <div className="bg-secondary px-4 py-2 border-b border-border">
                   <div className="flex space-x-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    {/* Use theme destructive for red, keep yellow/green */}
+                    <div className="w-3 h-3 rounded-full bg-destructive"></div>
                     <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   </div>

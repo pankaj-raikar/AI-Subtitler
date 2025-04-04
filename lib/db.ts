@@ -3,6 +3,7 @@
 
 import { v4 as uuidv4 } from "uuid"
 import { prisma } from "./prisma"
+import logger from "./logger" // Import the logger
 
 type JobStatus = "pending" | "processing" | "completed" | "failed"
 
@@ -41,11 +42,11 @@ export async function createConversionJob({
   fileUrl: string
   language?: string
 }): Promise<any> {
-  console.log("[DEBUG] Creating conversion job", { userId, fileName, fileSize, fileType })
+  logger.debug("Creating conversion job", { userId, fileName, fileSize, fileType })
 
   try {
     // First, get or create the user
-    console.log("[DEBUG] Getting or creating user", { clerkId: userId })
+    logger.debug("Getting or creating user", { clerkId: userId })
     const user = await prisma.user.upsert({
       where: { clerkId: userId },
       update: {},
@@ -56,7 +57,7 @@ export async function createConversionJob({
       },
     })
 
-    console.log("[DEBUG] User record ready", { userId: user.id, clerkId: user.clerkId })
+    logger.debug("User record ready", { userId: user.id, clerkId: user.clerkId })
 
     // Now create the conversion job with the correct user ID
     const job = await prisma.conversionJob.create({
@@ -75,24 +76,24 @@ export async function createConversionJob({
       },
     })
 
-    console.log("[DEBUG] Job created successfully in database", { jobId: job.id })
+    logger.debug("Job created successfully in database", { jobId: job.id })
     return job
   } catch (error) {
-    console.error("[ERROR] Failed to create conversion job:", error)
+    logger.error("Failed to create conversion job:", { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw new Error(`Failed to create conversion job: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
 export async function getConversionJob(id: string): Promise<any | null> {
-  console.log("[DEBUG] Fetching job by ID from database", { id })
+  logger.debug("Fetching job by ID from database", { id })
   try {
     const job = await prisma.conversionJob.findUnique({
       where: { id },
     })
-    console.log("[DEBUG] Job fetch result", { found: !!job })
+    logger.debug("Job fetch result", { found: !!job })
     return job
   } catch (error) {
-    console.error("[ERROR] Failed to fetch job:", error)
+    logger.error("Failed to fetch job:", { id, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw new Error(`Failed to fetch job: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
@@ -101,7 +102,7 @@ export async function getUserJobs(
   userId: string,
   options: { limit: number; offset: number; status?: string },
 ): Promise<any[]> {
-  // console.log("[DEBUG] Fetching user jobs from database", { userId, options })
+  logger.debug("Fetching user jobs from database", { userId, options })
   try {
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
@@ -123,23 +124,23 @@ export async function getUserJobs(
       },
     })
 
-    // console.log("[DEBUG] User jobs fetched from database", { count: jobs.length })
+    logger.debug("User jobs fetched from database", { count: jobs.length })
     return jobs
   } catch (error) {
-    console.error("[ERROR] Failed to fetch user jobs:", error)
+    logger.error("Failed to fetch user jobs:", { userId, options, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw new Error(`Failed to fetch user jobs: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
 export async function deleteConversionJob(id: string): Promise<void> {
-  console.log("[DEBUG] Deleting job from database", { id })
+  logger.debug("Deleting job from database", { id })
   try {
     await prisma.conversionJob.delete({
       where: { id },
     })
-    console.log("[DEBUG] Job deleted successfully from database")
+    logger.debug("Job deleted successfully from database", { id })
   } catch (error) {
-    console.error("[ERROR] Failed to delete job:", error)
+    logger.error("Failed to delete job:", { id, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw new Error(`Failed to delete job: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
@@ -154,7 +155,12 @@ export async function updateConversionJob(
     updatedAt?: Date
   },
 ): Promise<any> {
-  console.log("[DEBUG] Updating job in database", { id, data })
+  // Avoid logging potentially large data objects directly unless necessary
+  const logData = { ...data };
+  if (logData.error && typeof logData.error === 'string' && logData.error.length > 200) {
+    logData.error = logData.error.substring(0, 200) + '...'; // Truncate long errors
+  }
+  logger.debug("Updating job in database", { id, data: logData })
   try {
     const job = await prisma.conversionJob.update({
       where: { id },
@@ -163,11 +169,10 @@ export async function updateConversionJob(
         updatedAt: data.updatedAt || new Date(),
       },
     })
-    console.log("[DEBUG] Job updated successfully in database", { jobId: job.id })
+    logger.debug("Job updated successfully in database", { jobId: job.id })
     return job
   } catch (error) {
-    console.error("[ERROR] Failed to update job:", error)
+    logger.error("Failed to update job:", { id, data: logData, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw new Error(`Failed to update job: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
-

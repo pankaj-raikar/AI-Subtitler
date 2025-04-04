@@ -6,20 +6,21 @@ import path from "path"
 import { v4 as uuidv4 } from "uuid"
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3"
 import { prisma } from "./prisma"
+import logger from "./logger" // Import the logger
 
 // Create uploads directory if it doesn't exist
 const UPLOADS_DIR = path.join(process.cwd(), "uploads")
-console.log('[DEBUG] Initializing storage: uploads directory path', { UPLOADS_DIR })
+logger.debug('Initializing storage: uploads directory path', { UPLOADS_DIR })
 if (!fs.existsSync(UPLOADS_DIR)) {
-  console.log('[DEBUG] Creating uploads directory')
+  logger.info('Creating uploads directory', { UPLOADS_DIR })
   fs.mkdirSync(UPLOADS_DIR, { recursive: true })
 }
 
-// Create a directory for SRT files
+// Create a directory for SRT files (Note: This might be redundant if using R2 primarily)
 const SRT_DIR = path.join(UPLOADS_DIR, "srt")
-console.log('[DEBUG] Initializing storage: SRT directory path', { SRT_DIR })
+logger.debug('Initializing storage: Local SRT directory path (potentially unused)', { SRT_DIR })
 if (!fs.existsSync(SRT_DIR)) {
-  console.log('[DEBUG] Creating SRT directory')
+  logger.info('Creating local SRT directory (potentially unused)', { SRT_DIR })
   fs.mkdirSync(SRT_DIR, { recursive: true })
 }
 
@@ -34,15 +35,15 @@ const s3Client = new S3Client({
 })
 
 /**
- * Save a file to the local filesystem
+ * Save a file to the local filesystem (Consider if this is still needed with R2)
  */
 export async function saveFile(buffer: Buffer, fileName: string, userId: string): Promise<string> {
-  console.log('[DEBUG] Saving file', { fileName, userId, size: buffer.length })
+  logger.debug('Saving file locally', { fileName, userId, size: buffer.length })
   const userDir = path.join(UPLOADS_DIR, userId)
 
   // Create user directory if it doesn't exist
   if (!fs.existsSync(userDir)) {
-    console.log('[DEBUG] Creating user uploads directory', { userDir })
+    logger.debug('Creating user uploads directory locally', { userDir })
     fs.mkdirSync(userDir, { recursive: true })
   }
 
@@ -51,12 +52,18 @@ export async function saveFile(buffer: Buffer, fileName: string, userId: string)
   const filePath = path.join(userDir, `${fileId}${fileExtension}`)
 
   // Write the file
-  console.log('[DEBUG] Writing file to disk', { filePath, size: buffer.length })
-  fs.writeFileSync(filePath, buffer)
+  logger.debug('Writing file to local disk', { filePath, size: buffer.length })
+  try {
+    fs.writeFileSync(filePath, buffer)
+  } catch (error) {
+    logger.error('Failed to write file to local disk', { filePath, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+    throw error; // Re-throw the error after logging
+  }
 
-  // Return the relative path
-  const relativePath = `/api/v1/files/${userId}/${fileId}${fileExtension}`
-  console.log('[DEBUG] File saved successfully', { relativePath })
+
+  // Return the relative path (used for local access, e.g., by processing.ts)
+  const relativePath = `/api/v1/files/${userId}/${fileId}${fileExtension}` // This path format seems specific to local serving
+  logger.debug('Local file saved successfully', { relativePath })
   return relativePath
 }
 
@@ -64,10 +71,11 @@ export async function saveFile(buffer: Buffer, fileName: string, userId: string)
  * Save SRT content to Cloudflare R2
  */
 export async function saveSRT(content: string, jobId: string, userId: string): Promise<string> {
-  console.log('[DEBUG] Saving SRT file to R2', { jobId, userId, contentLength: content.length })
-  
+  logger.debug('Saving SRT file to R2', { jobId, userId, contentLength: content.length })
+
   try {
     // Get the job details to get the original filename
+    logger.debug('Fetching job details to determine SRT filename', { jobId });
     const job = await prisma.conversionJob.findUnique({
       where: { id: jobId },
       select: { fileName: true }
@@ -90,14 +98,14 @@ export async function saveSRT(content: string, jobId: string, userId: string): P
     })
 
     await s3Client.send(command)
-    console.log('[DEBUG] SRT file uploaded to R2 successfully', { srtFileName })
+    logger.info('SRT file uploaded to R2 successfully', { jobId, srtFileName })
 
     // Return the R2 URL
     const downloadUrl = `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/${srtFileName}`
-    console.log('[DEBUG] Generated R2 URL', { downloadUrl })
+    logger.debug('Generated R2 download URL', { jobId, downloadUrl })
     return downloadUrl
   } catch (error) {
-    console.error('[ERROR] Failed to upload SRT to R2:', error)
+    logger.error('Failed to upload SRT to R2', { jobId, userId, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw error
   }
 }
@@ -106,10 +114,11 @@ export async function saveSRT(content: string, jobId: string, userId: string): P
  * Get SRT content from Cloudflare R2
  */
 export async function getSRTContent(jobId: string, userId: string): Promise<string> {
-  console.log('[DEBUG] Retrieving SRT content from R2', { jobId, userId })
-  
+  logger.debug('Retrieving SRT content from R2', { jobId, userId })
+
   try {
     // Get the job details to get the original filename
+    logger.debug('Fetching job details to determine SRT filename for retrieval', { jobId });
     const job = await prisma.conversionJob.findUnique({
       where: { id: jobId },
       select: { fileName: true }
@@ -134,37 +143,53 @@ export async function getSRTContent(jobId: string, userId: string): Promise<stri
       throw new Error("No content found in R2 response")
     }
 
-    // Convert the readable stream to string
-    const chunks: Uint8Array[] = []
-    for await (const chunk of response.Body as any) {
-      chunks.push(chunk)
-    }
-    const content = Buffer.concat(chunks).toString('utf-8')
+    // Helper function to convert stream to string
+    const streamToString = (stream: NodeJS.ReadableStream): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        stream.on("data", (chunk) => chunks.push(chunk instanceof Buffer ? chunk : Buffer.from(chunk)));
+        stream.on("error", reject);
+        stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+      });
 
-    console.log('[DEBUG] SRT content retrieved successfully from R2', { 
-      jobId, 
-      contentLength: content.length 
+    // Convert the readable stream to string
+    const content = await streamToString(response.Body as NodeJS.ReadableStream);
+
+
+    logger.info('SRT content retrieved successfully from R2', {
+      jobId,
+      contentLength: content.length
     })
     return content
   } catch (error) {
-    console.error('[ERROR] Failed to retrieve SRT from R2:', error)
+    logger.error('Failed to retrieve SRT from R2', { jobId, userId, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw error
   }
 }
 
 /**
- * Delete a file from the filesystem
+ * Delete a file from the local filesystem (Consider if needed with R2)
  */
 export async function deleteFile(filePath: string): Promise<void> {
-  console.log('[DEBUG] Deleting file', { filePath })
+  // filePath here seems to be the relative URL path like /api/v1/files/...
+  logger.debug('Attempting to delete local file', { filePath })
+  // Construct the actual filesystem path based on the assumed structure
   const fullPath = path.join(process.cwd(), filePath.replace(/^\/api\/v1\/files\//, "uploads/"))
+  logger.debug('Constructed full path for local deletion', { fullPath })
 
-  if (fs.existsSync(fullPath)) {
-    console.log('[DEBUG] File exists, deleting', { fullPath })
-    fs.unlinkSync(fullPath)
-    console.log('[DEBUG] File deleted successfully')
-  } else {
-    console.log('[DEBUG] File not found for deletion', { fullPath })
+
+  try {
+      if (fs.existsSync(fullPath)) {
+        logger.debug('Local file exists, attempting deletion', { fullPath })
+        fs.unlinkSync(fullPath)
+        logger.info('Local file deleted successfully', { fullPath })
+      } else {
+        logger.warn('Local file not found for deletion', { fullPath })
+      }
+  } catch (error) {
+      logger.error('Failed to delete local file', { fullPath, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
+      // Decide if this error should be thrown or just logged
+      // throw error; // Uncomment if deletion failure should halt the process
   }
 }
 

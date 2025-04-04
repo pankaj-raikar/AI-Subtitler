@@ -11,19 +11,19 @@ const steps = [
     icon: <Upload className="h-12 w-12 text-primary" />,
     title: "Upload Video",
     description: "Drag-and-drop MP4, MOV, AVI, or paste a YouTube/Vimeo link.",
-    color: "from-purple-500/20 to-purple-500/5"
+    color: "from-primary/20 to-primary/5" // Use theme primary
   },
   {
     icon: <Zap className="h-12 w-12 text-accent" />,
     title: "AI Magic",
     description: "Watch our AI process audio/video and generate subtitles in minutes.",
-    color: "from-accent/20 to-accent/5"
+    color: "from-accent/20 to-accent/5" // Use theme accent
   },
   {
     icon: <Share2 className="h-12 w-12 text-primary" />,
     title: "Download & Share",
     description: "Export subtitles or share directly to social media/platforms.",
-    color: "from-blue-500/20 to-blue-500/5"
+    color: "from-primary/20 to-primary/5" // Use theme primary again
   }
 ];
 
@@ -32,7 +32,7 @@ const HowItWorksSection = () => {
     <section id="how-it-works" className="py-24 bg-secondary/30">
       <div className="container px-4 sm:px-6 lg:px-8 mx-auto">
         <div className="max-w-3xl mx-auto text-center mb-16">
-          <div className="inline-block px-3 py-1 mb-4 rounded-full bg-secondary text-sm font-medium">
+          <div className="inline-block px-3 py-1 mb-4 rounded-full bg-primary/10 text-primary text-sm font-medium">
             🔍 Simple Process
           </div>
           <h2 className="text-3xl md:text-4xl font-bold mb-6">

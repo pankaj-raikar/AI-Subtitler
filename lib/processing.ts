@@ -9,15 +9,16 @@ import path from "path"
 import { promisify } from "util"
 import { jsonToSrtOpenai, TranscriptJSON } from "./json-2-srt-openai"
 import { auth } from "@clerk/nextjs/server"
+import logger from "./logger" // Import the logger
 
 // Initialize clients
-console.log("[DEBUG] Initializing OpenAI client")
+logger.debug("Initializing OpenAI client")
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL,
 })
 
-console.log("[DEBUG] Initializing Deepgram client")
+logger.debug("Initializing Deepgram client")
 const deepgram = createClient(process.env.DEEPGRAM_API_KEY || "")
 
 // File system promises
@@ -29,27 +30,27 @@ const unlinkAsync = promisify(fs.unlink)
  * Transcribe audio using Deepgram API
  */
 async function transcribeWithDeepgram(audioPath: string, language = "en"): Promise<string> {
-  console.log("[DEBUG] Starting Deepgram transcription", { audioPath, language })
+  logger.debug("Starting Deepgram transcription", { audioPath, language })
   try {
-    console.log("[DEBUG] Reading audio file for Deepgram")
+    logger.debug("Reading audio file for Deepgram", { audioPath })
     const { result, error } = await deepgram.listen.prerecorded.transcribeFile(await readFileAsync(audioPath), {
       model: "whisper",
-      language: 'en',
+      language: 'en', // Ensure this matches the function parameter if dynamic language is needed
       smart_format: true,
     })
 
     if (error) {
-      console.log("[DEBUG] Deepgram returned an error", { error })
+      logger.error("Deepgram returned an error during transcription", { audioPath, language, error: error.message, stack: error.stack })
       throw new Error(`Deepgram transcription error: ${error.message}`)
     }
 
-    console.log("[DEBUG] Deepgram transcription successful, converting to SRT")
+    logger.debug("Deepgram transcription successful, converting to SRT", { audioPath })
     // Convert JSON response to SRT format
     const srt = jsonToSrt(result)
-    console.log("[DEBUG] SRT conversion completed", { srtLength: srt.length })
+    logger.debug("SRT conversion from Deepgram result completed", { srtLength: srt.length })
     return srt
   } catch (error) {
-    console.error("Deepgram transcription failed:", error)
+    logger.error("Deepgram transcription failed", { audioPath, language, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw error
   }
 }
@@ -64,33 +65,33 @@ interface TranscriptionWithText {
  * Transcribe audio using OpenAI Whisper API (fallback)
  */
 async function transcribeWithOpenAI(audioPath: string, language = "en"): Promise<string> {
-  console.log("[DEBUG] Starting OpenAI transcription", { audioPath, language })
+  logger.debug("Starting OpenAI transcription", { audioPath, language })
   try {
-    console.log("[DEBUG] Reading audio file for OpenAI")
+    logger.debug("Reading audio file for OpenAI", { audioPath })
     const audioData = await readFileAsync(audioPath)
-    
+
     // Create a File object from the buffer
     const file = new File([audioData], "audio.wav", { type: "audio/wav" })
-    
-    console.log("[DEBUG] Sending audio to OpenAI for transcription", {
+
+    logger.debug("Sending audio to OpenAI for transcription", {
       fileSize: file.size,
       fileType: file.type,
       language,
     })
     const transcription = await openai.audio.transcriptions.create({
-      file: file as any,
-      model: "whisper-advanced", 
+      file: file as any, // Casting might be necessary depending on OpenAI SDK version
+      model: "whisper-advanced", // Consider making model configurable
       response_format: "verbose_json",
       language: language,
-    }) as TranscriptJSON
+    }) as TranscriptJSON // Assuming the response matches this interface
 
-    console.log("[DEBUG] OpenAI transcription successful, converting to SRT")
+    logger.debug("OpenAI transcription successful, converting to SRT", { audioPath })
     const result = jsonToSrtOpenai(transcription)
-    console.log("[DEBUG] SRT conversion completed", { srtLength: result.length })
+    logger.debug("SRT conversion from OpenAI result completed", { srtLength: result.length })
 
     return result
   } catch (error) {
-    console.error("OpenAI transcription failed:", error)
+    logger.error("OpenAI transcription failed", { audioPath, language, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
     throw error
   }
 }
@@ -99,7 +100,7 @@ async function transcribeWithOpenAI(audioPath: string, language = "en"): Promise
  * Process media file and generate subtitles
  */
 export async function processMedia(jobId: string, fileUrl: string, userId: string, language = "en", useOpenAI = false) {
-  console.log("[DEBUG] Starting media processing", { jobId, fileUrl, userId, language, useOpenAI })
+  logger.info("Starting media processing", { jobId, fileUrl, userId, language, useOpenAI })
   const tempDir = path.join(process.cwd(), "uploads", "temp")
   const audioPath = path.join(tempDir, `${jobId}.wav`)
   const cleanupFiles: string[] = [audioPath]
@@ -108,7 +109,7 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
   try {
     // Ensure temp directory exists
     if (!fs.existsSync(tempDir)) {
-      console.log("[DEBUG] Creating temp directory")
+      logger.debug("Creating temp directory", { tempDir })
       fs.mkdirSync(tempDir, { recursive: true })
     }
 
@@ -125,11 +126,12 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
     })
 
     // Get the local file path
-    const localFilePath = fileUrl.replace(/^\/api\/v1\/files\//, "")
+    const localFilePath = fileUrl.replace(/^\/api\/v1\/files\//, "") // Consider a more robust way to map URL to path
     inputPath = path.join(process.cwd(), "uploads", localFilePath) // Assign value here
-    console.log("[DEBUG] Resolved input file path", { fileUrl, localFilePath, inputPath })
+    logger.debug("Resolved input file path", { fileUrl, localFilePath, inputPath })
 
     if (!fs.existsSync(inputPath)) {
+      logger.error("Input file not found", { jobId, inputPath })
       throw new Error(`Input file not found at path: ${inputPath}`)
     }
 
@@ -145,7 +147,8 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
     })
 
     // Extract audio from input file
-    console.log("[DEBUG] Starting FFmpeg audio extraction", {
+    logger.debug("Starting FFmpeg audio extraction", {
+      jobId,
       inputPath,
       outputPath: audioPath,
       fileExists: fs.existsSync(inputPath),
@@ -168,26 +171,30 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
 
       command
         .on("start", (commandLine) => {
-          console.log("[DEBUG] FFmpeg started with command:", commandLine)
+          logger.debug("FFmpeg started", { jobId, commandLine })
         })
         .on("progress", (progress) => {
-          console.log("[DEBUG] FFmpeg progress:", {
+          // Log progress less frequently or only on significant changes if needed
+          logger.debug("FFmpeg progress", {
+            jobId,
             frames: progress.frames,
             currentFps: progress.currentFps,
-            targetSize: progress.targetSize,
+            targetSize: progress.targetSize, // Note: targetSize might be in KB
             timemark: progress.timemark,
             percent: progress.percent,
           })
         })
         .on("stderr", (stderrLine) => {
-          console.log("[DEBUG] FFmpeg stderr:", stderrLine)
+          // Be cautious logging stderr, it can be verbose
+          logger.debug("FFmpeg stderr", { jobId, stderrLine })
         })
         .on("end", () => {
-          console.log("[DEBUG] FFmpeg audio extraction completed successfully")
+          logger.debug("FFmpeg audio extraction completed successfully", { jobId })
           // Verify the output file
           if (fs.existsSync(audioPath)) {
             const stats = fs.statSync(audioPath)
-            console.log("[DEBUG] Output audio file details:", {
+            logger.debug("Output audio file details:", {
+              jobId,
               path: audioPath,
               size: stats.size,
               created: stats.birthtime,
@@ -195,14 +202,17 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
             })
             resolve()
           } else {
+            logger.error("FFmpeg completed but output audio file was not created", { jobId, audioPath })
             reject(new Error("FFmpeg completed but output file was not created"))
           }
         })
         .on("error", (err: { message: string }) => {
-          console.error("[ERROR] FFmpeg error:", {
+          logger.error("FFmpeg error during audio extraction", {
+            jobId,
             message: err.message,
             inputPath,
             outputPath: audioPath,
+            // Consider adding stack trace if available: stack: err.stack
           })
           reject(new Error(`FFmpeg error: ${err.message}`))
         })
@@ -210,18 +220,21 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
 
     // Verify audio file was created and is valid
     if (!fs.existsSync(audioPath)) {
+      logger.error("Audio file check failed: File does not exist after FFmpeg completion", { jobId, audioPath })
       throw new Error("Audio file was not created successfully")
     }
 
     const audioStats = fs.statSync(audioPath)
     if (audioStats.size === 0) {
+      logger.error("Audio file check failed: File is empty after FFmpeg completion", { jobId, audioPath })
       throw new Error("Audio file was created but is empty")
     }
 
-    console.log("[DEBUG] Audio extraction completed successfully", {
+    logger.debug("Audio extraction verified successfully", {
+      jobId,
       audioPath,
       fileSize: audioStats.size,
-      duration: audioStats.size / (16000 * 2), // Approximate duration in seconds
+      approxDurationSec: audioStats.size / (16000 * 2), // Sample rate * bytes per sample (16-bit = 2 bytes)
     })
 
     // Update progress before transcription
@@ -238,23 +251,22 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
     // Transcribe the audio
     let srtContent: string
     try {
-      if (language === "en") {
-        console.log("[DEBUG] Using OpenAI for transcription (explicitly requested)")
+      // Decision logic for transcription service
+      if (useOpenAI || language === "en") { // Example: Use OpenAI if explicitly requested or if English
+         logger.debug("Using OpenAI for transcription", { jobId, audioPath, language, reason: useOpenAI ? 'explicitly requested' : 'language is en' });
         srtContent = await transcribeWithOpenAI(audioPath, language)
       } else {
-        console.log("[DEBUG] Attempting Deepgram transcription first")
+        logger.debug("Attempting Deepgram transcription first", { jobId, audioPath, language })
         try {
           srtContent = await transcribeWithDeepgram(audioPath, language)
         } catch (deepgramError) {
-          console.warn("Deepgram transcription failed, falling back to OpenAI:", deepgramError)
-          console.log("[DEBUG] Deepgram failed, falling back to OpenAI", {
-            error: deepgramError instanceof Error ? deepgramError.message : String(deepgramError),
-          })
+          logger.warn("Deepgram transcription failed, falling back to OpenAI", { jobId, language, error: deepgramError instanceof Error ? deepgramError.message : String(deepgramError) })
           srtContent = await transcribeWithOpenAI(audioPath, language)
         }
       }
-    } catch (error) {
-      throw new Error(`Transcription failed: ${error instanceof Error ? error.message : String(error)}`)
+    } catch (transcriptionError) {
+       logger.error("Transcription failed after attempting selected services", { jobId, language, useOpenAI, error: transcriptionError instanceof Error ? transcriptionError.message : String(transcriptionError), stack: transcriptionError instanceof Error ? transcriptionError.stack : undefined });
+      throw new Error(`Transcription failed: ${transcriptionError instanceof Error ? transcriptionError.message : String(transcriptionError)}`)
     }
 
     // Update progress before saving SRT
@@ -268,15 +280,15 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
       })
     })
 
-    // Save the SRT file
+    // Save the SRT file locally (temporary step before upload)
     const srtPath = path.join(tempDir, `${jobId}.srt`)
     cleanupFiles.push(srtPath)
     await writeFileAsync(srtPath, srtContent)
-    console.log("[DEBUG] SRT file saved successfully", { srtPath })
+    logger.debug("SRT file saved locally successfully", { jobId, srtPath })
 
     // Upload SRT to storage
     const srtUrl = await saveSRT(srtContent, jobId, userId)
-    console.log("[DEBUG] SRT file uploaded to storage", { srtUrl })
+    logger.debug("SRT file uploaded to storage", { jobId, srtUrl })
 
     // Update final progress and status
     await prisma.$transaction(async (tx) => {
@@ -291,43 +303,60 @@ export async function processMedia(jobId: string, fileUrl: string, userId: strin
       })
     })
 
-    console.log("[DEBUG] Media processing completed successfully", { jobId })
+    logger.info("Media processing completed successfully", { jobId })
   } catch (error) {
-    console.error("[ERROR] Media processing failed:", error)
-    throw error
+    // Log the main processing error before updating the DB
+    logger.error("Media processing failed", { jobId, error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined })
+    // Update DB to reflect failure (ensure this happens even if cleanup fails)
+    try {
+       await prisma.conversionJob.update({
+         where: { id: jobId },
+         data: {
+           status: "failed",
+           progress: 0, // Or keep last known progress? Resetting might be clearer.
+           error: error instanceof Error ? error.message : String(error),
+           updatedAt: new Date().toISOString(),
+         },
+       });
+       logger.info("Updated job status to failed in database", { jobId });
+    } catch (dbUpdateError) {
+        logger.error("Failed to update job status to failed in database after processing error", { jobId, dbUpdateError: dbUpdateError instanceof Error ? dbUpdateError.message : String(dbUpdateError) });
+    }
+    // Re-throw the original error after attempting to update DB
+    throw error;
   } finally {
     // Cleanup temporary files explicitly added to cleanupFiles array (e.g., audioPath, srtPath)
-    console.log("[DEBUG] Starting cleanup of temporary processing files", { cleanupFiles });
+    logger.debug("Starting cleanup of temporary processing files", { jobId, cleanupFiles });
     for (const file of cleanupFiles) {
       try {
         if (fs.existsSync(file)) {
           await unlinkAsync(file)
-          console.log("[DEBUG] Successfully cleaned up temporary file:", file)
+          logger.debug("Successfully cleaned up temporary file", { jobId, file })
         } else {
-          console.log("[DEBUG] Temporary file not found for cleanup:", file);
+          logger.debug("Temporary file not found for cleanup (already deleted?)", { jobId, file });
         }
       } catch (cleanupError) {
-        console.warn("[WARN] Failed to cleanup temporary file:", file, { error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) });
+        logger.warn("Failed to cleanup temporary file", { jobId, file, error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) });
       }
     }
-    console.log("[DEBUG] Finished cleanup of temporary processing files.");
+    logger.debug("Finished cleanup of temporary processing files.", { jobId });
 
     // Cleanup the original uploaded file from local storage, as requested.
     // Note: Using local storage for uploads is not recommended for scalable production environments.
     if (inputPath && typeof inputPath === 'string') {
-        console.log("[DEBUG] Attempting cleanup of original uploaded file from local storage", { inputPath });
+        logger.debug("Attempting cleanup of original uploaded file from local storage", { jobId, inputPath });
         try {
             if (fs.existsSync(inputPath)) {
                 await unlinkAsync(inputPath);
-                console.log("[DEBUG] Successfully cleaned up original uploaded file:", inputPath);
+                logger.debug("Successfully cleaned up original uploaded file", { jobId, inputPath });
             } else {
-                console.log("[DEBUG] Original uploaded file not found for cleanup (already deleted?):", inputPath);
+                logger.debug("Original uploaded file not found for cleanup (already deleted?)", { jobId, inputPath });
             }
         } catch (cleanupError) {
-            console.warn("[WARN] Failed to cleanup original uploaded file:", inputPath, { error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) });
+            logger.warn("Failed to cleanup original uploaded file", { jobId, inputPath, error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) });
         }
     } else {
-         console.warn("[WARN] Could not determine original input path for cleanup.");
+         logger.warn("Could not determine original input path for cleanup.", { jobId });
     }
   }
 }

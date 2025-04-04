@@ -45,7 +45,7 @@ const FeaturesSection = () => {
       
       <div className="container px-4 sm:px-6 lg:px-8 mx-auto relative">
         <div className="max-w-3xl mx-auto text-center mb-12">
-          <div className="inline-block px-3 py-1 mb-4 rounded-full bg-secondary text-sm font-medium">
+          <div className="inline-block px-3 py-1 mb-4 rounded-full bg-primary/10 text-primary text-sm font-medium">
             ✨ Key Features
           </div>
           <h2 className="text-3xl md:text-4xl font-bold mb-6">

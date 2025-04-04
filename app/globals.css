@@ -44,28 +44,46 @@
 
   /* Dark theme variables */
   .dark {
-    --background: 240 10% 3.9%; /* Dark Gray */
-    --foreground: 0 0% 98%; /* Light Gray */
-    --card: 0 0% 3.9%;
+    /* Deep dark background */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%; /* Light text */
+
+    /* Dark cards */
+    --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
-    --card: 240 10% 3.9%; /* Dark Gray */
-    --card-foreground: 0 0% 98%; /* Light Gray */
-    --popover: 240 10% 3.9%; /* Dark Gray */
-    --popover-foreground: 0 0% 98%; /* Light Gray */
-    --primary: 0 0% 98%; /* Light Gray */
-    --primary-foreground: 240 5.9% 10%; /* Dark Blue/Gray */
-    --secondary: 240 3.7% 15.9%; /* Darker Gray */
-    --secondary-foreground: 0 0% 98%; /* Light Gray */
-    --muted: 240 3.7% 15.9%; /* Darker Gray */
-    --muted-foreground: 240 5% 64.9%; /* Medium Gray */
-    --accent: 240 3.7% 15.9%; /* Darker Gray */
-    --accent-foreground: 0 0% 98%; /* Light Gray */
-    --destructive: 0 84.2% 60.2%; /* Brighter Red (same as light mode) */
-    --destructive-foreground: 0 0% 98%; /* Light Gray */
-    --border: 240 3.7% 15.9%; /* Darker Gray Border */
-    --input: 240 3.7% 15.9%; /* Darker Gray Input */
-    --ring: 240 4.9% 83.9%; /* Lighter Gray Ring */
-    /* Keep original sidebar dark theme */
+
+    /* Dark popovers */
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Vibrant Purple Primary */
+    --primary: 252 100% 69%; /* Vibrant Purple */
+    --primary-foreground: 0 0% 98%; /* Light text on primary */
+
+    /* Darker Gray Secondary */
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Muted Gray */
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    /* Vibrant Pink/Orange Accent */
+    --accent: 12 76% 61%; /* Vibrant Pink/Orange */
+    --accent-foreground: 0 0% 98%; /* Light text on accent */
+
+    /* Destructive Red */
+    --destructive: 0 62.8% 30.6%; /* Darker Red */
+    --destructive-foreground: 0 0% 98%;
+
+    /* Dark Borders/Inputs */
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%; /* Lighter ring for focus */
+
+    --radius: 0.5rem; /* Keep radius */
+
+    /* Keep original sidebar dark theme (assuming it's separate) */
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -125,8 +143,13 @@
 }
 
 /* Utility classes */
+/* Default (light mode) gradient */
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-accent;
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-primary; /* Use primary for light */
+}
+/* Dark mode gradient override */
+.dark .gradient-text {
+   @apply bg-gradient-to-r from-purple-400 via-pink-500 to-accent; /* Use accent for dark */
 }
 
 .feature-card {
@@ -163,9 +186,9 @@
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, 
-    rgba(255, 255, 255, 0) 0%, 
-    rgba(255, 255, 255, 0.05) 50%, 
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
     rgba(255, 255, 255, 0) 100%);
   background-size: 200% 100%;
   animation: shimmer 3s infinite;
@@ -287,3 +310,7 @@ button:hover .btn-icon {
     @apply min-h-11;
   }
 }
+
+/* Note: The request mentioned "add accordling like dark mode and light mode" which seems like a typo or unclear instruction.
+   The existing globals.css already has dark mode setup using CSS variables and the `.dark` class.
+   If specific accordion styles for light/dark mode are needed, more details would be required. */

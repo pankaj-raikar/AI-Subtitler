@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Globe, Menu } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ui/theme-toggle"; // Import ThemeToggle
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -46,9 +47,11 @@ const Navbar = () => {
                 Get Started Free
               </Button>
             </Link>
+            <ThemeToggle /> {/* Add ThemeToggle button */}
           </div>
           
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2"> {/* Added flex and gap for mobile */}
+            <ThemeToggle /> {/* Add ThemeToggle button for mobile */}
             <button
               type="button"
               className="inline-flex items-center justify-center p-2 rounded-md text-foreground focus:outline-none"
@@ -89,6 +92,7 @@ const Navbar = () => {
                   Get Started Free
                 </Button>
               </Link>
+              {/* ThemeToggle is already outside for mobile */}
             </div>
           </div>
         </div>

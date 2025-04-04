@@ -1,17 +1,18 @@
 import { createClient } from "@deepgram/sdk";
 import fs from "fs";
 import { jsonToSrt } from "./json-2-srt-deegram";
+import logger from "./logger"; // Import the logger
 
 const listen = async () => {
-  console.log('[DEBUG] Starting Deepgram API test function')
-  console.log('[DEBUG] Initializing Deepgram client')  
+  logger.debug('Starting Deepgram API test function')
+  logger.debug('Initializing Deepgram client')
   const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
 
-  console.log('[DEBUG] Reading sample audio file')
+  logger.debug('Reading sample audio file')
   const audioFile = fs.readFileSync("japanese.mp3")
-  console.log('[DEBUG] Sample file loaded', { size: audioFile.length })
-  
-  console.log('[DEBUG] Sending audio to Deepgram for transcription')
+  logger.debug('Sample file loaded', { size: audioFile.length })
+
+  logger.debug('Sending audio to Deepgram for transcription')
   const { result, error } = await deepgram.listen.prerecorded.transcribeFile(
     audioFile,
     {
@@ -22,24 +23,18 @@ const listen = async () => {
   );
 
   if (error) {
-    console.error(error);
-    console.log('[DEBUG] Deepgram transcription error', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error('Deepgram transcription error', { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
   } else {
-    console.log('[DEBUG] Deepgram transcription successful, converting to SRT');
+    logger.debug('Deepgram transcription successful, converting to SRT');
     const srtFormat = jsonToSrt(result);
-    console.log('[DEBUG] Writing SRT file to disk', { srtLength: srtFormat.length });
+    logger.debug('Writing SRT file to disk', { srtLength: srtFormat.length });
     fs.writeFileSync("output.srt", srtFormat);
-    console.log('[DEBUG] SRT file written successfully');
-    console.dir(result, { depth: null });
+    logger.debug('SRT file written successfully');
+    logger.debug('Deepgram result:', { result }); // Log the result object as metadata
   }
 };
 
-console.log('[DEBUG] Executing Deepgram test function');
+logger.debug('Executing Deepgram test function');
 listen().catch(error => {
-  console.error('Error in Deepgram test function:', error);
-  console.log('[DEBUG] Unhandled error in Deepgram test function', { 
-    error: error instanceof Error ? error.message : String(error) 
-  });
+  logger.error('Unhandled error in Deepgram test function', { error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined });
 });
