@@ -32,9 +32,10 @@ interface Job {
 // Use the props interface name from the original file if preferred, but keep the structure from the new code
 interface JobsListProps { // Renamed back from JobsTableProps
   statusFilter?: string; // Make statusFilter optional
+  onDeleteJob?: (id: string, filename: string) => void; // Add onDeleteJob
 }
 
-export default function JobsList({ statusFilter }: JobsListProps) { // Renamed component back
+export default function JobsList({ statusFilter, onDeleteJob }: JobsListProps) { // Renamed component back
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);

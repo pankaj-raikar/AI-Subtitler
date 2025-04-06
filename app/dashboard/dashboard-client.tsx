@@ -39,6 +39,8 @@ export default function DashboardClient({ initialJobs }: DashboardClientProps) {
   ).length;
   const failedJobs = jobsList.filter((job) => job?.status === "failed").length;
 
+  
+
   // Handler called by UploadDialog when upload *starts*
   const handleUploadStarted = useCallback((file: File, language: string) => {
     // Optional: Show an initial toast notification
@@ -172,8 +174,7 @@ export default function DashboardClient({ initialJobs }: DashboardClientProps) {
           />
 
           <JobsList
-            jobs={jobsList} // Pass the current jobs list
-            activeTab={activeTab}
+            statusFilter={activeTab}
             onDeleteJob={handleDeleteJob} // Pass the correct delete handler
           />
         </div>
